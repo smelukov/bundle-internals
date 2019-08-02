@@ -67,6 +67,10 @@ data.input.modules.forEach(module => {
 });
 ```
 
+## Why not builtin webpack Stats object?
+
+First of all it is 
+
 ## Data Analyzing
 
 This plugin will be used in [Webpack Runtime Analyzer](https://github.com/smelukov/webpack-runtime-analyzer/) V2 But for now, you can load debug data from your bundle to [Jora Sandbox](https://discoveryjs.github.io/jora-sandbox/) and make some interesting queries to it.
