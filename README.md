@@ -38,7 +38,7 @@ One of the values:
 
 ```js
 new BundleInternalsPlugin({
-    watchModeOnly: true
+    runMode: 'watch'
 });
 ```
 
@@ -67,9 +67,9 @@ data.input.modules.forEach(module => {
 });
 ```
 
-## Why not builtin webpack Stats object?
+## Why not a builtin webpack Stats object?
 
-First of all it is 
+Its too huge to analyze ;)
 
 ## Data Analyzing
 
