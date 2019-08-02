@@ -2,6 +2,8 @@
 
 The webpack plugin that collects a debug information about your webpack bundle (e.g. bundled modules, input entry points, and output assets)
 
+[![npm](https://img.shields.io/npm/v/bundle-internals)](https://www.npmjs.com/package/bundle-internals)
+
 ## Usage
 
 `npm i bundle-internals`
