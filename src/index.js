@@ -265,7 +265,7 @@ class BundleInternalsPlugin extends Tapable {
                     if (group.runtimeChunk) {
                         stats.output.bundles.push({
                             name: group.runtimeChunk.name,
-                            module: this.getModuleId(group.runtimeChunk.entryModule),
+                            module: group.runtimeChunk.entryModule && this.getModuleId(group.runtimeChunk.entryModule),
                             chunks: group.chunks.map(chunk => chunk.id)
                         });
                     }
