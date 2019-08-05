@@ -42,6 +42,21 @@ new BundleInternalsPlugin({
 });
 ```
 
+### resolve: boolean
+
+Resolves payload before pass it to the data-hook
+
+```js
+new BundleInternalsPlugin({
+    resolve: true
+});
+```
+
+`resolve` is `false` by default
+
+> Don't mix `resolve` and `saveTo` options because `resolve` makes a recursive JSON that can't be stringified
+> If you really want to save recursive JSON then use some specialized tools (e.g. [flatted](https://www.npmjs.com/package/flatted))
+
 ## Hooks
 
 ### data(payload)
@@ -64,6 +79,26 @@ Some data fields contain only ids and need to denormalize/resolve. For example `
 ```js
 data.input.modules.forEach(module => {
     module.file = data.input.files.find(file => module.file === file.path)
+});
+```
+
+Or you can use builtin `resolve` function:
+
+```js
+const BundleInternalsPlugin = require('bundle-internals');
+
+const bundleInternalsPlugin = new BundleInternalsPlugin()
+bundleInternalsPlugin.hooks.data.tap('my-plugin', payload => {
+    BundleInternalsPlugin.resolve(payload);
+    console.log(payload);
+});
+```
+
+Or use `resolve` option:
+
+```js
+new BundleInternalsPlugin({
+    resolve: true
 });
 ```
 

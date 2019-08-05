@@ -8,15 +8,17 @@ const {
     deepExtend,
     unixpath
 } = require('./utils');
+const resolve = require('./resolve');
 
-const pluginName = 'Bundle Debug Info';
+const pluginName = 'Bundle Internals';
 
-class BundleDebugInfoPlugin extends Tapable {
+class BundleInternalsPlugin extends Tapable {
     constructor(options) {
         super();
         this.options = deepExtend({
             watchModeOnly: false,
-            runMode: 'all'
+            runMode: 'all',
+            resolve: false
         }, options);
 
         this.hooks = {
@@ -293,6 +295,10 @@ class BundleDebugInfoPlugin extends Tapable {
                     warnings: this.collectWarnings(compilation.warnings)
                 };
 
+                if (this.options.resolve) {
+                    resolve(data);
+                }
+
                 if (this.options.saveTo) {
                     fs.writeFileSync(path.resolve(compiler.options.output.path, this.options.saveTo), JSON.stringify(data));
                 }
@@ -378,4 +384,5 @@ class BundleDebugInfoPlugin extends Tapable {
     }
 }
 
-module.exports = BundleDebugInfoPlugin;
+module.exports = BundleInternalsPlugin;
+module.exports.resolve = resolve;
