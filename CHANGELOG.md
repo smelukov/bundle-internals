@@ -1,3 +1,9 @@
+## 1.1.2 (18 December 2019)
+
+* fix crash
+* internal refactoring
+* fixed d.ts
+
 ## 1.1.1 (05 August 2019)
 
 * fix crash when group doesn't have runtimeChunk
