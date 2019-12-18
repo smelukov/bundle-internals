@@ -43,7 +43,7 @@
         "extends": "eslint:recommended"
     },
     "dependencies": {
-        "tapable": "^1.1.3"
+        "webpack-sources": "^1.4.3"
     },
     "devDependencies": {
         "eslint": "^6.1.0"

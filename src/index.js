@@ -1,8 +1,9 @@
 const fs = require('fs');
 const path = require('path');
-const NodeOutputFileSystem = require.main.require('webpack/lib/node/NodeOutputFileSystem');
-const RequestShortener = require.main.require('webpack/lib/RequestShortener');
+const NodeOutputFileSystem = require('webpack/lib/node/NodeOutputFileSystem');
+const RequestShortener = require('webpack/lib/RequestShortener');
 const { Tapable, SyncHook } = require("tapable");
+const { RawSource } = require("webpack-sources");
 const {
     getFileHash,
     deepExtend,
@@ -33,15 +34,15 @@ class BundleInternalsPlugin extends Tapable {
         const run = this.run.bind(this);
 
         if (this.options.runMode === 'all' || this.options.runMode === 'watch') {
-            compiler.hooks.watchRun.tapAsync(pluginName, run);
+            compiler.hooks.watchRun.tap(pluginName, run);
         }
 
         if (this.options.runMode === 'all' || this.options.runMode === 'non-watch') {
-            compiler.hooks.run.tapAsync(pluginName, run);
+            compiler.hooks.run.tap(pluginName, run);
         }
     }
 
-    run(compiler, done) {
+    run(compiler) {
         const requestShortener = new RequestShortener(compiler.context);
 
         this.compiler = compiler;
@@ -62,7 +63,7 @@ class BundleInternalsPlugin extends Tapable {
         };
 
         compiler.hooks.thisCompilation.tap(pluginName, compilation => {
-            compilation.hooks.optimizeChunkAssets.tap(pluginName, () => {
+            compilation.hooks.optimizeAssets.tapAsync(pluginName, async (assets, cb) => {
                 stats.assets = compilation.chunkGroups.reduce((all, group) => {
                     if (!group.isInitial()) {
                         return all;
@@ -97,9 +98,7 @@ class BundleInternalsPlugin extends Tapable {
 
                     return all;
                 }, stats.assets);
-            });
 
-            compiler.hooks.afterEmit.tapAsync(pluginName, async (compilation, done) => {
                 let outputFileSystem = compilation.compiler.outputFileSystem;
 
                 if (compilation.compiler.outputFileSystem instanceof NodeOutputFileSystem) {
@@ -234,7 +233,7 @@ class BundleInternalsPlugin extends Tapable {
                             let { size } = foleStat;
 
                             if (!size) {
-                                size = compilation.assets[file].size();
+                                size = assets[file].size();
                             }
 
                             stats.output.files.push({
@@ -299,17 +298,17 @@ class BundleInternalsPlugin extends Tapable {
                     resolve(data);
                 }
 
-                if (this.options.saveTo) {
-                    fs.writeFileSync(path.resolve(compiler.options.output.path, this.options.saveTo), JSON.stringify(data));
+                const { saveTo } = this.options;
+
+                if (saveTo) {
+                    assets[saveTo] = new RawSource(JSON.stringify(data));
                 }
 
                 this.hooks.data.call(data);
 
-                done();
+                cb();
             });
         });
-
-        done();
     }
 
     getModuleId(module) {

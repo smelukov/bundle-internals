@@ -42,12 +42,12 @@ export type AssetsInfo = {
      * Initial chunks (entry points)
      * Need to normalize
      */
-    initial: { [string]: string[] },
+    initial: { [key: string]: string[] },
     /**
      * Dynamic imports chunks
      * Need to normalize
      */
-    dynamic: { [string]: string[] },
+    dynamic: { [key: string]: string[] },
 }
 
 export type InputInfo = {
@@ -66,7 +66,7 @@ export type InputInfo = {
     /**
      * Used node modules
      */
-    nodeModules: { [string]: string[] }
+    nodeModules: { [key: string]: string[] }
 }
 
 export type OutputInfo = {
@@ -177,7 +177,7 @@ export type Module = {
      * Module id that this module extracted from (e.g. css files in mini-css-extract-plugin)
      * Need to normalize
      */
-    extracted: string?,
+    extracted?: string,
     /**
      * List of reasons that leads to webpack deoptimization
      */
@@ -221,7 +221,7 @@ export type Message = {
      * Module or chunk or entrypoint or asset id
      * Need to normalize
      */
-    source: (string | number)?,
+    source?: string | number,
     type: string,
     message: string
 }

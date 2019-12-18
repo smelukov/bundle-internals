@@ -108,7 +108,13 @@ Its too huge to analyze ;)
 
 ## Data Analyzing
 
-This plugin will be used in [Webpack Runtime Analyzer](https://github.com/smelukov/webpack-runtime-analyzer/) V2 But for now, you can load debug data from your bundle to [Jora Sandbox](https://discoveryjs.github.io/jora-sandbox/) and make some interesting queries to it.
+This plugin will be used in [Webpack Runtime Analyzer](https://github.com/smelukov/webpack-runtime-analyzer/) V2
+
+But for now, you can get the raw bundle internal data and analyze it manually.
+
+> It's just a JSON and you may use any tools to analyze and visualize it
+
+For example, you may load it to [Jora Sandbox](https://discoveryjs.github.io/jora-sandbox/) and make some interesting queries to it.
 
 Jora Sandbox is a sandbox for the [Jora](https://github.com/discoveryjs/jora) query engine that allows you to query and aggregate any data from JSON.
 
