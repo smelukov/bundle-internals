@@ -133,7 +133,7 @@ input.files.nodeModule
 
 Result:
 
-```json
+```js
 [
   { name: "@babel/polyfill", version: ["7.4.4"] },
   { name: "@babel/runtime", version: ["7.5.5"] },
@@ -150,12 +150,12 @@ Result:
 Jora Query:
 
 ```
-input.modules.sort(<reasons.size()>).reverse().id
+input.modules.sort(reasons.size() desc).id
 ```
 
 Result:
 
-```json
+```js
 [
   "./node_modules/react/index.js",
   "./node_modules/prop-types/index.js",
