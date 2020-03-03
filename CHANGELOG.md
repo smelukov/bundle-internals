@@ -1,3 +1,7 @@
+## 1.1.3 (03 March 2020)
+
+* fix crash
+
 ## 1.1.2 (18 December 2019)
 
 * fix crash
