@@ -116,24 +116,26 @@ class BundleInternalsPlugin extends Tapable {
                 while (module = modules.pop()) { // eslint-disable-line no-cond-assign
                     const moduleId = this.getModuleId(module);
 
+                    let absResourcePath = module.resource;
                     let resource = module.resource ? path.relative(compiler.context, module.resource) : undefined;
                     let extractedFrom;
 
                     if (!resource && module.issuer && module.issuer.resource) {
+                        absResourcePath = module.issuer.resource;
                         resource = path.relative(compiler.context, module.issuer.resource);
                     }
 
                     resource = resource && resource.split('?')[0];
 
                     if (resource && !stats.input.files.find(({ path }) => path === resource)) {
-                        const fileStat = compiler.inputFileSystem.statSync(resource);
+                        const fileStat = compiler.inputFileSystem.statSync(absResourcePath);
                         const fileInfo = {
                             path: resource,
                             ext: path.extname(resource),
                             size: fileStat.size
                         };
 
-                        const [pathToPackageJson] = resource.match(/.*node_modules\/(?:@[^/]+\/[^/]+|[^/]+)\//) || [];
+                        const [pathToPackageJson] = absResourcePath.match(/.*node_modules\/(?:@[^/]+\/[^/]+|[^/]+)\//) || [];
 
                         if (pathToPackageJson) {
                             const {
