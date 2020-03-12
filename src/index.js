@@ -3,7 +3,6 @@ const path = require('path');
 const NodeOutputFileSystem = require('webpack/lib/node/NodeOutputFileSystem');
 const RequestShortener = require('webpack/lib/RequestShortener');
 const { Tapable, SyncHook } = require("tapable");
-const { RawSource } = require("webpack-sources");
 const {
     getFileHash,
     deepExtend,
@@ -62,254 +61,252 @@ class BundleInternalsPlugin extends Tapable {
             output: { bundles: [], chunks: [], files: [] }
         };
 
-        compiler.hooks.thisCompilation.tap(pluginName, compilation => {
-            compilation.hooks.optimizeAssets.tapAsync(pluginName, async (assets, cb) => {
-                stats.assets = compilation.chunkGroups.reduce((all, group) => {
-                    if (!group.isInitial()) {
-                        return all;
-                    }
-
-                    const initialFiles = new Set();
-                    const dynamicFiles = new Set();
-                    const chunks = group.chunks.map(chunk => ({ type: 'initial', chunk }));
-                    const stack = [...group.getChildren()];
-                    let cursor;
-
-                    while (cursor = stack.pop()) { // eslint-disable-line no-cond-assign
-                        stack.push(...cursor.getChildren());
-                        chunks.push(...cursor.chunks.map(chunk => ({ type: 'dynamic', chunk })));
-                    }
-
-                    chunks.forEach(({ chunk, type }) => {
-                        chunk.files.forEach(file => {
-                            const target = type === 'initial' ? initialFiles : dynamicFiles;
-
-                            target.add(path.join(publicPath, file));
-                        });
-                    });
-
-                    if (initialFiles.size) {
-                        all.initial[group.runtimeChunk.name] = [...initialFiles];
-                    }
-
-                    if (dynamicFiles.size) {
-                        all.dynamic[group.runtimeChunk.name] = [...dynamicFiles];
-                    }
-
+        compiler.hooks.afterEmit.tapAsync(pluginName, async (compilation, cb) => {
+            stats.assets = compilation.chunkGroups.reduce((all, group) => {
+                if (!group.isInitial()) {
                     return all;
-                }, stats.assets);
-
-                let outputFileSystem = compilation.compiler.outputFileSystem;
-
-                if (compilation.compiler.outputFileSystem instanceof NodeOutputFileSystem) {
-                    outputFileSystem = fs;
                 }
 
-                compilation.entrypoints.forEach((entry, name) => {
-                    stats.input.entries.push({ name })
+                const initialFiles = new Set();
+                const dynamicFiles = new Set();
+                const chunks = group.chunks.map(chunk => ({ type: 'initial', chunk }));
+                const stack = [...group.getChildren()];
+                let cursor;
+
+                while (cursor = stack.pop()) { // eslint-disable-line no-cond-assign
+                    stack.push(...cursor.getChildren());
+                    chunks.push(...cursor.chunks.map(chunk => ({ type: 'dynamic', chunk })));
+                }
+
+                chunks.forEach(({ chunk, type }) => {
+                    chunk.files.forEach(file => {
+                        const target = type === 'initial' ? initialFiles : dynamicFiles;
+
+                        target.add(path.join(publicPath, file));
+                    });
                 });
 
-                const modules = [...compilation.modules];
-                const handledModules = new Set();
-                let module;
+                if (initialFiles.size) {
+                    all.initial[group.runtimeChunk.name] = [...initialFiles];
+                }
 
-                while (module = modules.pop()) { // eslint-disable-line no-cond-assign
-                    const moduleId = this.getModuleId(module);
+                if (dynamicFiles.size) {
+                    all.dynamic[group.runtimeChunk.name] = [...dynamicFiles];
+                }
 
-                    let absResourcePath = module.resource;
-                    let resource = module.resource ? path.relative(compiler.context, module.resource) : undefined;
-                    let extractedFrom;
+                return all;
+            }, stats.assets);
 
-                    if (!resource && module.issuer && module.issuer.resource) {
-                        absResourcePath = module.issuer.resource;
-                        resource = path.relative(compiler.context, module.issuer.resource);
-                    }
+            let outputFileSystem = compilation.compiler.outputFileSystem;
 
-                    resource = resource && resource.split('?')[0];
+            if (compilation.compiler.outputFileSystem instanceof NodeOutputFileSystem) {
+                outputFileSystem = fs;
+            }
 
-                    if (resource && !stats.input.files.find(({ path }) => path === resource)) {
-                        const fileStat = compiler.inputFileSystem.statSync(absResourcePath);
-                        const fileInfo = {
-                            path: resource,
-                            ext: path.extname(resource),
-                            size: fileStat.size
-                        };
+            compilation.entrypoints.forEach((entry, name) => {
+                stats.input.entries.push({ name })
+            });
 
-                        const [pathToPackageJson] = absResourcePath.match(/.*node_modules\/(?:@[^/]+\/[^/]+|[^/]+)\//) || [];
+            const modules = [...compilation.modules];
+            const handledModules = new Set();
+            let module;
 
-                        if (pathToPackageJson) {
-                            const {
-                                name: packageName,
-                                version: packageVersion
-                            } = compiler.inputFileSystem.readJsonSync(pathToPackageJson + 'package.json');
+            while (module = modules.pop()) { // eslint-disable-line no-cond-assign
+                const moduleId = this.getModuleId(module);
 
-                            fileInfo.nodeModule = { name: packageName, version: packageVersion };
-                            stats.input.nodeModules[packageName] = stats.input.nodeModules[packageName] || [];
+                let absResourcePath = module.resource;
+                let resource = module.resource ? path.relative(compiler.context, module.resource) : undefined;
+                let extractedFrom;
 
-                            if (!stats.input.nodeModules[packageName].includes(packageVersion)) {
-                                stats.input.nodeModules[packageName].push(packageVersion);
-                            }
-                        }
+                if (!resource && module.issuer && module.issuer.resource) {
+                    absResourcePath = module.issuer.resource;
+                    resource = path.relative(compiler.context, module.issuer.resource);
+                }
 
-                        stats.input.files.push(fileInfo);
-                    }
+                resource = resource && resource.split('?')[0];
 
-                    if (module.constructor.name === 'ConcatenatedModule') {
-                        if (module.rootModule && !compilation.modules.includes(module.rootModule)) {
-                            modules.push(module.rootModule);
-                        }
+                if (resource && !stats.input.files.find(({ path }) => path === resource)) {
+                    const fileStat = compiler.inputFileSystem.statSync(absResourcePath);
+                    const fileInfo = {
+                        path: resource,
+                        ext: path.extname(resource),
+                        size: fileStat.size
+                    };
 
-                        if (module.modules && !compilation.modules.includes(module.rootModule)) {
-                            module.modules.forEach(m => !modules.includes(m) && modules.push(m));
-                        }
-                    } else if (
-                        module.constructor.name === 'MultiModule' ||
-                        module.constructor.name === 'ContextModule'
-                    ) {
-                        module.dependencies.forEach(dep => {
-                            if (dep.module && !compilation.modules.includes(dep.module)) {
-                                modules.push(dep.module);
-                            }
-                        });
-                    } else if (module.constructor.name === 'CssModule') {
-                        if (module.issuer) {
-                            extractedFrom = this.getModuleId(module.issuer);
+                    const [pathToPackageJson] = absResourcePath.match(/.*node_modules\/(?:@[^/]+\/[^/]+|[^/]+)\//) || [];
 
-                            if (!compilation.modules.includes(module.issuer)) {
-                                modules.push(module.issuer);
-                            }
+                    if (pathToPackageJson) {
+                        const {
+                            name: packageName,
+                            version: packageVersion
+                        } = compiler.inputFileSystem.readJsonSync(pathToPackageJson + 'package.json');
+
+                        fileInfo.nodeModule = { name: packageName, version: packageVersion };
+                        stats.input.nodeModules[packageName] = stats.input.nodeModules[packageName] || [];
+
+                        if (!stats.input.nodeModules[packageName].includes(packageVersion)) {
+                            stats.input.nodeModules[packageName].push(packageVersion);
                         }
                     }
 
+                    stats.input.files.push(fileInfo);
+                }
+
+                if (module.constructor.name === 'ConcatenatedModule') {
+                    if (module.rootModule && !compilation.modules.includes(module.rootModule)) {
+                        modules.push(module.rootModule);
+                    }
+
+                    if (module.modules && !compilation.modules.includes(module.rootModule)) {
+                        module.modules.forEach(m => !modules.includes(m) && modules.push(m));
+                    }
+                } else if (
+                    module.constructor.name === 'MultiModule' ||
+                    module.constructor.name === 'ContextModule'
+                ) {
                     module.dependencies.forEach(dep => {
-                        if (
-                            dep.module && !compilation.modules.includes(dep.module) &&
-                            !modules.includes(dep.module) && !handledModules.has(dep.module)
-                        ) {
+                        if (dep.module && !compilation.modules.includes(dep.module)) {
                             modules.push(dep.module);
                         }
                     });
+                } else if (module.constructor.name === 'CssModule') {
+                    if (module.issuer) {
+                        extractedFrom = this.getModuleId(module.issuer);
 
-                    handledModules.add(module);
-
-                    const moduleInfo = {
-                        id: moduleId,
-                        file: resource,
-                        size: module.size(),
-                        type: module.constructor.name,
-                        isEntry: module.isEntryModule(),
-                        extracted: extractedFrom,
-                        concatenated: module.modules && module.modules.map(module => this.getModuleId(module)),
-                        deopt: module.optimizationBailout.map(reason => {
-                            if (typeof reason === 'function') {
-                                return reason(requestShortener);
-                            }
-
-                            return reason;
-                        }),
-                        deps: module.dependencies
-                            .filter(dependency => dependency.module)
-                            .map(dependency => ({ module: this.getModuleId(dependency.module) })),
-                        reasons: module.reasons
-                            .filter(reason => reason.module)
-                            .map(reason => ({ module: this.getModuleId(reason.module) }))
-                    };
-
-                    stats.input.modules.push(moduleInfo);
-                }
-
-                stats.output.chunks = compilation.chunks.map(chunk => ({
-                    id: chunk.id,
-                    name: chunk.name,
-                    reason: chunk.chunkReason,
-                    size: chunk.size({}),
-                    groups: [...chunk.groupsIterable].map(group => group.id),
-                    canBeInitial: chunk.canBeInitial(),
-                    onlyInitial: chunk.isOnlyInitial(),
-                    entryModule: chunk.entryModule && this.getModuleId(chunk.entryModule),
-                    files: chunk.files.map(file => {
-                        const absFilePath = path.join(outputPath, file);
-
-                        if (!stats.output.files.find(({ path }) => path === file)) {
-                            const foleStat = outputFileSystem.statSync(absFilePath);
-                            let { size } = foleStat;
-
-                            if (!size) {
-                                size = assets[file].size();
-                            }
-
-                            stats.output.files.push({
-                                path: file,
-                                ext: path.extname(file),
-                                size
-                            });
+                        if (!compilation.modules.includes(module.issuer)) {
+                            modules.push(module.issuer);
                         }
-
-                        return file;
-                    }),
-                    modules: chunk.getModules().map(module => this.getModuleId(module))
-                }));
-
-                stats.output.chunkGroups = compilation.chunkGroups.map(group => {
-                    return {
-                        id: group.id,
-                        isInitial: group.isInitial(),
-                        name: group.name,
-                        chunks: group.chunks.map(chunk => chunk.id),
-                        runtimeChunk: group.runtimeChunk && group.runtimeChunk.id,
-                        children: [...group.childrenIterable].map(group => group.id),
-                        parents: [...group.parentsIterable].map(group => group.id)
-                    };
-                });
-
-                for (const group of compilation.chunkGroups) {
-                    if (group.runtimeChunk) {
-                        stats.output.bundles.push({
-                            name: group.runtimeChunk.name,
-                            module: group.runtimeChunk.entryModule && this.getModuleId(group.runtimeChunk.entryModule),
-                            chunks: group.chunks.map(chunk => chunk.id)
-                        });
                     }
                 }
 
-                await Promise.all(stats.input.files
-                    .map(file => {
-                        return getFileHash(fs, path.join(compilerContext, file.path))
-                            .then(hash => file.hash = hash);
-                    })
-                );
-                await Promise.all(stats.output.files
-                    .map(file => {
-                        return getFileHash(outputFileSystem, path.join(outputPath, file.path))
-                            .then(hash => file.hash = hash);
-                    }));
+                module.dependencies.forEach(dep => {
+                    if (
+                        dep.module && !compilation.modules.includes(dep.module) &&
+                        !modules.includes(dep.module) && !handledModules.has(dep.module)
+                    ) {
+                        modules.push(dep.module);
+                    }
+                });
 
-                const data = {
-                    version: webpackVersion,
-                    hash: compilation.hash,
-                    mode: compilation.options.mode || 'production',
-                    context: unixpath(compilation.compiler.context),
-                    assets: stats.assets,
-                    input: stats.input,
-                    output: stats.output,
-                    errors: this.collectWarnings(compilation.errors),
-                    warnings: this.collectWarnings(compilation.warnings)
+                handledModules.add(module);
+
+                const moduleInfo = {
+                    id: moduleId,
+                    file: resource,
+                    size: module.size(),
+                    type: module.constructor.name,
+                    isEntry: module.isEntryModule(),
+                    extracted: extractedFrom,
+                    concatenated: module.modules && module.modules.map(module => this.getModuleId(module)),
+                    deopt: module.optimizationBailout.map(reason => {
+                        if (typeof reason === 'function') {
+                            return reason(requestShortener);
+                        }
+
+                        return reason;
+                    }),
+                    deps: module.dependencies
+                        .filter(dependency => dependency.module)
+                        .map(dependency => ({ module: this.getModuleId(dependency.module) })),
+                    reasons: module.reasons
+                        .filter(reason => reason.module)
+                        .map(reason => ({ module: this.getModuleId(reason.module) }))
                 };
 
-                if (this.options.resolve) {
-                    resolve(data);
-                }
+                stats.input.modules.push(moduleInfo);
+            }
 
-                const { saveTo } = this.options;
+            stats.output.chunks = compilation.chunks.map(chunk => ({
+                id: chunk.id,
+                name: chunk.name,
+                reason: chunk.chunkReason,
+                size: chunk.size({}),
+                groups: [...chunk.groupsIterable].map(group => group.id),
+                canBeInitial: chunk.canBeInitial(),
+                onlyInitial: chunk.isOnlyInitial(),
+                entryModule: chunk.entryModule && this.getModuleId(chunk.entryModule),
+                files: chunk.files.map(file => {
+                    const absFilePath = path.join(outputPath, file);
 
-                if (saveTo) {
-                    assets[saveTo] = new RawSource(JSON.stringify(data));
-                }
+                    if (!stats.output.files.find(({ path }) => path === file)) {
+                        const foleStat = outputFileSystem.statSync(absFilePath);
+                        let { size } = foleStat;
 
-                this.hooks.data.call(data);
+                        if (!size) {
+                            size = compilation.assets[file].size();
+                        }
 
-                cb();
+                        stats.output.files.push({
+                            path: file,
+                            ext: path.extname(file),
+                            size
+                        });
+                    }
+
+                    return file;
+                }),
+                modules: chunk.getModules().map(module => this.getModuleId(module))
+            }));
+
+            stats.output.chunkGroups = compilation.chunkGroups.map(group => {
+                return {
+                    id: group.id,
+                    isInitial: group.isInitial(),
+                    name: group.name,
+                    chunks: group.chunks.map(chunk => chunk.id),
+                    runtimeChunk: group.runtimeChunk && group.runtimeChunk.id,
+                    children: [...group.childrenIterable].map(group => group.id),
+                    parents: [...group.parentsIterable].map(group => group.id)
+                };
             });
+
+            for (const group of compilation.chunkGroups) {
+                if (group.runtimeChunk) {
+                    stats.output.bundles.push({
+                        name: group.runtimeChunk.name,
+                        module: group.runtimeChunk.entryModule && this.getModuleId(group.runtimeChunk.entryModule),
+                        chunks: group.chunks.map(chunk => chunk.id)
+                    });
+                }
+            }
+
+            await Promise.all(stats.input.files
+                .map(file => {
+                    return getFileHash(fs, path.join(compilerContext, file.path))
+                        .then(hash => file.hash = hash);
+                })
+            );
+            await Promise.all(stats.output.files
+                .map(file => {
+                    return getFileHash(outputFileSystem, path.join(outputPath, file.path))
+                        .then(hash => file.hash = hash);
+                }));
+
+            const data = {
+                version: webpackVersion,
+                hash: compilation.hash,
+                mode: compilation.options.mode || 'production',
+                context: unixpath(compilation.compiler.context),
+                assets: stats.assets,
+                input: stats.input,
+                output: stats.output,
+                errors: this.collectWarnings(compilation.errors),
+                warnings: this.collectWarnings(compilation.warnings)
+            };
+
+            if (this.options.resolve) {
+                resolve(data);
+            }
+
+            const { saveTo } = this.options;
+
+            if (saveTo) {
+                fs.writeFileSync(path.resolve(outputPath, saveTo), JSON.stringify(data));
+            }
+
+            this.hooks.data.call(data);
+
+            cb();
         });
     }
 
