@@ -1,6 +1,6 @@
 ## 1.1.4 (12 March 2020)
 
-* fix crash
+* fix crash when a chunk was extracted (e.g. when using `mini-css-extract-plugin`)
 
 ## 1.1.3 (03 March 2020)
 
