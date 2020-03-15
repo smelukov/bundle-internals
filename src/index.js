@@ -298,13 +298,13 @@ class BundleInternalsPlugin extends Tapable {
                 resolve(data);
             }
 
+            this.hooks.data.call(data);
+
             const { saveTo } = this.options;
 
             if (saveTo) {
                 fs.writeFileSync(path.resolve(outputPath, saveTo), JSON.stringify(data));
             }
-
-            this.hooks.data.call(data);
 
             cb();
         });
