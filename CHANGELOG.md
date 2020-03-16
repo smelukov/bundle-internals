@@ -1,3 +1,7 @@
+## 1.2.0 (16 March 2020)
+
+* allow to edit payload before saving
+
 ## 1.1.4 (12 March 2020)
 
 * fix crash when a chunk was extracted (e.g. when using `mini-css-extract-plugin`)
